@@ -28,20 +28,11 @@ Write a function to replace the missing values per the following guidelines:
 *For character variables, you should fill in missing values with "virginica"  
 
 ```{r}
-fill_missing_data = function(x) {
-  if(is.numeric(x)){x = replace_na(x, mean(x, na.rm = TRUE))} 
-  else if (is.character(x)){x = replace_na(x, "virginica")}
-}
-```
-
-iris_with_missing =  map(iris_with_missing, fill_missing_data) %>% 
-  as_tibble()
-
-```{r}
 missing_data = function(x) {
   output = vector(length = length(x))
   
   for (i in 1:length(x)) {
+    
     if (is.numeric(x[i])) {
       mean_i = mean(x[!is.na(x)])
           if (!is.na(x[i])) {output[i] = x[i]} 
@@ -60,5 +51,44 @@ iris_with_missing =  map(iris_with_missing, missing_data) %>%
 ```
 
 
-
 ## Problem 2
+```{r, message=FALSE, warning=FALSE}
+all_files = list.files("./data")
+
+all_data = tibble(file_name = all_files) %>% 
+  mutate(contents = map(file_name, ~read_csv(file.path("./data", .)))) %>% 
+  unnest() %>% 
+  mutate(subject_id = file_name) %>% 
+  select(subject_id, everything()) %>% 
+  separate("file_name", into = c("arm")) %>% 
+  mutate(
+    arm = recode(arm, 
+                      "con" = "control",
+                      "exp" = "experimental"),
+    subject_id = substr(subject_id, 1, 6)) %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    values_to = "observation"
+  ) %>% 
+  mutate(
+    week = substr(week, 6, 7),
+    week = as.numeric(week))
+```
+The original data came as separate csv files for each participant. The data were combined into a single data frame, and tidied such that each variable is a single column (study arm, week of study, and observed value). Of note, if I wanted to present the data in a table to a human reader, I would not have used pivot_longer as this format is harder to read. 
+
+*Make a spaghetti plot showing observations on each subject over time
+```{r}
+all_data %>% 
+  ggplot(aes(x = week, y = observation, color = subject_id)) + 
+  geom_path() + 
+  facet_grid(~arm) +
+  labs(
+    title = "Observations for Participants Over Time",
+    x = "Week",
+    y = "Observation"
+   ) + 
+  theme(legend.position = "bottom")
+```
+
+Comparing the control to the experimental participants, the observations for the control group do not appear to change over time, whereas the observations for the experimnetal group increase over time.

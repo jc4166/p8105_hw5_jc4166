@@ -32,8 +32,33 @@ fill_missing_data = function(x) {
   if(is.numeric(x)){x = replace_na(x, mean(x, na.rm = TRUE))} 
   else if (is.character(x)){x = replace_na(x, "virginica")}
 }
+```
 
 iris_with_missing =  map(iris_with_missing, fill_missing_data) %>% 
   as_tibble()
+
+```{r}
+missing_data = function(x) {
+  output = vector(length = length(x))
+  
+  for (i in 1:length(x)) {
+    if (is.numeric(x[i])) {
+      mean_i = mean(x[!is.na(x)])
+          if (!is.na(x[i])) {output[i] = x[i]} 
+        else {output[i] = mean_i}
+    }
+    else if (is.character(x[i])) {
+        if (!is.na(x[i])) {output[i] = x[i]} 
+      else {output[i] = "virginica"}
+    }
+  }
+  output
+}
+
+iris_with_missing =  map(iris_with_missing, missing_data) %>% 
+  as_tibble()
 ```
 
+
+
+## Problem 2

@@ -24,8 +24,8 @@ iris_with_missing = iris %>%
 ```
 
 Write a function to replace the missing values per the following guidelines:  
-*For numeric variables, you should fill in missing values with the mean of non-missing values  
-*For character variables, you should fill in missing values with "virginica"  
+-For numeric variables, you should fill in missing values with the mean of non-missing values  
+-For character variables, you should fill in missing values with "virginica"  
 
 ```{r}
 missing_data = function(x) {

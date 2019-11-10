@@ -11,7 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(knitr)
 library(rvest)
-
 ```
 
 ## Problem 1
@@ -115,7 +114,7 @@ broom::tidy(ls_fit) %>%
 Set β1=0. Generate 10000 datasets from the model.
 ```{r}
 sim_results = 
-  rerun(10, sim_regression(beta1 = 0)) %>% 
+  rerun(100, sim_regression(beta1 = 0)) %>% 
   bind_rows()
 ```
 
@@ -124,12 +123,84 @@ Repeat the above for β1={1,2,3,4,5,6}.
 sim_results_repeat = 
   tibble(beta1 = c(1,2,3,4,5,6)) %>% 
   mutate(
-    output_list = map(.x = beta1, ~rerun(10, sim_regression(beta1 = .x))),
+    output_list = map(.x = beta1, ~rerun(100, sim_regression(beta1 = .x))),
     output_df = map(output_list, bind_rows)
   ) %>% 
   unnest(output_df) %>%
   select(-output_list)
 ```
 
-
 Make a plot showing the proportion of times the null was rejected (the power of the test) on the y axis and the true value of β1 on the x axis. Describe the association between effect size and power.
+
+To calculate the proportion of times the null was rejected, we have to count the number of times the p value < 0.05 and then divide by the total.
+
+```{r}
+null_rejected = sim_results_repeat %>%
+  group_by(beta1) %>% 
+  count(p.value < 0.05) %>%
+  mutate(power = n/sum(n)) %>%
+  janitor::clean_names() %>%
+  filter(p_value_0_05 == TRUE)
+```
+
+Make a plot of the above data using ggplot:
+```{r}
+ggplot(null_rejected, aes(x = beta1, y = power)) +
+  geom_point() +
+  geom_smooth(se = FALSE) 
+```
+As effect size (beta 1) increases, so does power.
+
+Make a plot showing the average estimate of β̂ 1 on the y axis and the true value of β1 on the x axis.
+```{r}
+avg_estimate = sim_results_repeat %>% 
+  group_by(beta1) %>% 
+  summarize(avg_estimate = mean(estimate))
+
+plot_full = 
+ggplot(sim_results_repeat, aes(x = beta1, y = avg_estimate)) +
+  geom_point() +
+  geom_line()  +
+  labs(
+    title = "True vs. Average Estimate of Beta 1 Values",
+    x = "True Value of Beta 1",
+    y = "Average Estimate of Beta 1"
+  )
+```
+
+Make a second plot the average estimate of β̂ 1 only in samples for which the null was rejected on the y axis and the true value of β1 on the x axis. 
+```{r}
+null_rejected_only = sim_results_repeat %>% 
+  filter(p.value < 0.05) %>% 
+  group_by(beta1) %>% 
+  summarize(avg_estimate = mean(estimate)) 
+
+plot_null = 
+  ggplot(null_rejected_only, aes(x = beta1, y = avg_estimate)) +
+  geom_point() +
+  geom_line() +
+  labs(
+    title = "True vs. Avg. Estimate of Beta 1 Values (p < 0.05 only)",
+    x = "True Value of Beta 1",
+    y = "Average Estimate of Beta 1"
+  )
+```
+
+To better visualize the differences between the two plots I will combine them:
+```{r}
+comparison = 
+  full_join(avg_estimate, null_rejected_only, by = "beta1") %>%
+  rename(beta_null_rejected = avg_estimate.y, beta_all = avg_estimate.x)
+
+ggplot(comparison, aes(x = beta1)) +
+  geom_point(aes(y = beta_null_rejected), color = "purple") +
+  geom_line(aes(y = beta_null_rejected), color = "purple") + 
+  geom_point(aes(y = beta_all), color = "pink") +
+  geom_line(aes(y = beta_all), color = "pink") +
+  labs(
+    x = "True Value of Beta 1",
+    y = "Average Estimate of Beta 1"
+  )
+```
+
+Looking at the two plots together, one can see that at beta1 = 1, the average estimate for samples in which the null was rejected is quite far from the average estimate in the full sample, but as we go towards beta1 = 6, the estimates are much closer. This is because as the effect size (beta1) increases, there will be a higher proportion of p < 0.05 values, approximating the sample in which all the values are included.
